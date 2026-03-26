@@ -1,0 +1,8 @@
+/* App Styles - Dark Theme */
+/* All styling handled by Tailwind CSS and index.css */
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

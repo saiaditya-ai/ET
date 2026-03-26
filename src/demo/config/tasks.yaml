@@ -1,0 +1,44 @@
+extract_task:
+  description: >
+    Extract diseases, procedures, and important clinical details from the note:
+    {note}
+  expected_output: Structured clinical information
+  agent: clinical_agent
+
+coding_task:
+  description: >
+    Using extracted data:
+    - Identify main disease
+    - Use ICD tool to fetch ICD codes
+    - Select best code
+    - Assign CPT codes
+    - Provide reasoning
+  expected_output: ICD and CPT codes with reasoning
+  agent: coding_agent
+
+validation_task:
+  description: >
+    Check if:
+    - Diagnosis is unclear
+    - Required details are missing
+
+    If unclear:
+    - DO NOT finalize
+    - Return clarification questions
+
+    If clear:
+    - Approve coding
+  expected_output: Either validation OR clarification questions
+  agent: validation_agent
+
+audit_task:
+  description: >
+    Generate a final response containing:
+    - The final ICD-10 codes determined
+    - The final CPT codes determined
+    - An audit trail detailing the steps taken
+    - A confidence score (0.0 to 1.0)
+    - The reasoning behind the selected codes
+  expected_output: >
+    A strictly formatted JSON object matching the MedicalCodingResult model.
+  agent: audit_agent
