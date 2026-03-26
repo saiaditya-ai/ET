@@ -1,363 +1,199 @@
 # Backend Integration Guide
 
-This document describes how to integrate your backend with the AI Medical Coding System frontend.
+The frontend is already wired to the backend routes used by the FastAPI app in this repo.
 
-## Quick Start
+## Current API contract
 
-1. **Stop using mock data:** Change `USE_MOCK = false` in `src/services/api.js`
-2. **Update API URLs:** Point to your actual backend server
-3. **Test each endpoint:** Verify responses match expected formats
-4. **Deploy:** No UI changes needed!
+### `POST /api/notes/upload`
 
-## API Endpoints
+Request:
 
-### 1. Upload Note
-
-**Endpoint:** `POST /api/notes/upload`
-
-**Request:**
 ```json
 {
-  "content": "Clinical note text here..."
+  "notes": ["Clinical note text"]
 }
 ```
 
-**Response:**
+Response:
+
 ```json
 {
-  "success": true,
-  "noteId": "note_12345"
+  "note_ids": ["n1234abcd"]
 }
 ```
 
-**Expected Status Codes:**
-- `200` - Success
-- `400` - Bad request (missing content)
-- `500` - Server error
+### `POST /api/processing/start`
 
----
+Request:
 
-### 2. Start Processing
-
-**Endpoint:** `POST /api/processing/start`
-
-**Request:**
 ```json
 {
-  "noteId": "note_12345"
+  "note_id": "n1234abcd"
 }
 ```
 
-**Response:**
+Response:
+
 ```json
 {
-  "success": true,
-  "message": "Processing started"
+  "status": "started",
+  "note_id": "n1234abcd"
 }
 ```
 
-**Expected Status Codes:**
-- `200` - Success
-- `404` - Note not found
-- `400` - Invalid note ID
+### `GET /api/processing/status/{note_id}`
 
----
+Processing response:
 
-### 3. Get Processing Status
-
-**Endpoint:** `GET /api/processing/status/:id`
-
-**Parameters:**
-- `id` - Note ID from upload response
-
-**Response (Processing):**
 ```json
 {
   "status": "processing",
-  "progress": 60,
-  "currentStep": {
-    "step": "Tokenizing",
-    "description": "Processing medical terminology..."
+  "current_step": "Assigning ICD-10 candidates",
+  "current_agent": "Coding Agent",
+  "current_detail": "Mapping extracted findings to candidate diagnosis codes.",
+  "progress": 42,
+  "activity_feed": [],
+  "extracted_entities": {
+    "conditions": [],
+    "procedures": [],
+    "evidence": []
   }
 }
 ```
 
-**Response (Needs Clarification):**
+Clarification response:
+
 ```json
 {
   "status": "needs_clarification",
-  "question": "What type of diabetes does the patient have?",
-  "options": ["Type 1", "Type 2", "Gestational", "Unknown"]
-}
-```
-
-**Response (Completed):**
-```json
-{
-  "status": "completed",
-  "progress": 100,
-  "message": "Processing complete!"
-}
-```
-
-**Response (Error):**
-```json
-{
-  "status": "error",
-  "error": "Processing failed",
-  "message": "Details about what went wrong"
-}
-```
-
-**Frontend Polling:**
-- Calls this endpoint every 2 seconds
-- Continues until status is `completed` or `error`
-- Updates UI based on status
-
----
-
-### 4. Get Results
-
-**Endpoint:** `GET /api/results/:id`
-
-**Parameters:**
-- `id` - Note ID from upload response
-
-**Response:**
-```json
-{
-  "success": true,
-  "icdCodes": [
+  "current_step": "Clarification required",
+  "current_agent": "Validation + Ambiguity Agent",
+  "current_detail": "Ambiguity detected. The workflow is paused until the clinician or operator responds.",
+  "progress": 76,
+  "activity_feed": [],
+  "extracted_entities": {
+    "conditions": [],
+    "procedures": [],
+    "evidence": []
+  },
+  "questions": [
     {
-      "code": "E11.9",
-      "description": "Type 2 diabetes mellitus without complications",
-      "confidence": 0.98,
-      "category": "Diagnosis"
-    }
-  ],
-  "cptCodes": [
-    {
-      "code": "99214",
-      "description": "Office/outpatient visit - moderate to high complexity",
-      "confidence": 0.92,
-      "category": "Evaluation & Management"
-    }
-  ],
-  "overallConfidence": 0.91,
-  "reasoning": "Clinical presentation shows clear indicators of Type 2 diabetes...",
-  "auditTrail": [
-    {
-      "timestamp": "2026-03-24T12:30:00.000Z",
-      "action": "Note uploaded",
-      "status": "success"
+      "id": "diabetes_clarification",
+      "prompt": "Confirm the diabetes type and add any supporting detail needed for coding.",
+      "options": ["Type 1", "Type 2", "Gestational", "Unspecified"],
+      "answer_type": "hybrid"
     }
   ]
 }
 ```
 
-**Expected Status Codes:**
-- `200` - Success
-- `404` - Note/results not found
-- `202` - Still processing (return standard status format instead)
-- `500` - Server error
-
----
-
-### 5. Send Clarification
-
-**Endpoint:** `POST /api/clarification`
-
-**Request:**
-```json
-{
-  "noteId": "note_12345",
-  "answers": ["Type 2"]  // Array of selected answers
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Clarification received, processing resumed"
-}
-```
-
-**Frontend Flow:**
-1. Shows clarification dialog with question and options
-2. User selects answer(s)
-3. Sends request with their response
-4. Resumes polling status endpoint
-5. Processing continues in backend
-
-**Expected Status Codes:**
-- `200` - Success
-- `404` - Note not found
-- `400` - Invalid format
-- `500` - Server error
-
----
-
-## Integration Steps
-
-### Step 1: Update API Service
-
-Edit `src/services/api.js`:
-
-```javascript
-// Change this line
-const USE_MOCK = false; // Enable real API mode
-
-// Update the real API functions with your backend URL
-const API_BASE_URL = 'https://your-backend.com'; // or http://localhost:8000
-
-async function realUploadNote(note) {
-  const response = await fetch(`${API_BASE_URL}/api/notes/upload`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: note }),
-  });
-  return await response.json();
-}
-
-// Update other functions similarly...
-```
-
-### Step 2: Handle CORS
-
-Enable CORS in your backend to accept requests from `http://localhost:5173` (dev) and your production domain.
-
-**Node.js/Express Example:**
-```javascript
-const cors = require('cors');
-app.use(cors({
-  origin: ['http://localhost:5173', 'https://yourdomain.com'],
-  credentials: true
-}));
-```
-
-### Step 3: Add Error Handling
-
-The frontend expects errors to be returned as JSON:
+Completed response:
 
 ```json
 {
-  "success": false,
-  "error": "Error message",
-  "details": "Additional details"
+  "status": "completed",
+  "progress": 100
 }
 ```
 
-### Step 4: Test Each Endpoint
+### `GET /api/results/{note_id}`
 
-Use an API testing tool (Postman, Insomnia, or curl) to verify:
+Response:
 
-1. Upload returns a valid `noteId`
-2. Status polling works correctly
-3. All response formats match expectations
-4. Error handling works properly
-
----
-
-## Mock Data Reference
-
-For testing without a backend, the mock system provides:
-
-**Processing Steps:**
+```json
+{
+  "note_id": "n1234abcd",
+  "status": "completed",
+  "icd10_codes": [
+    {
+      "code": "E11.9",
+      "description": "Type 2 diabetes mellitus without complications",
+      "confidence": 0.95
+    }
+  ],
+  "cpt_codes": [
+    {
+      "code": "83036",
+      "description": "Hemoglobin; glycosylated (A1c)",
+      "confidence": 0.9
+    }
+  ],
+  "confidence": 0.9,
+  "reasoning": ["Reasoning item"],
+  "audit_trail": [
+    {
+      "step": 1,
+      "agent": "Audit Agent",
+      "action": "Published confidence score and evidence-backed reasoning",
+      "duration": "0.2s"
+    }
+  ]
+}
 ```
-1. Extracting - Analyzing clinical note
-2. Tokenizing - Processing medical terminology
-3. Matching - Matching with ICD-10 codes
-4. Calculating - Computing CPT codes
-5. Validating - Validating coding accuracy
+
+### `POST /api/clarification`
+
+Request:
+
+```json
+{
+  "note_id": "n1234abcd",
+  "answers": {
+    "diabetes_clarification": {
+      "choice": "Type 2",
+      "text": "A1c 8.2%, currently on metformin."
+    }
+  }
+}
 ```
 
-**Mock ICD Codes:**
-- E11.9 - Type 2 diabetes (98% confidence)
-- I10 - Essential hypertension (95% confidence)
-- M79.3 - Panniculitis (87% confidence)
+Response:
 
-**Mock CPT Codes:**
-- 99214 - Office visit (92% confidence)
-- 98966 - Telehealth (88% confidence)
-- 81000 - Urinalysis (85% confidence)
+```json
+{
+  "status": "clarification received, resume processing"
+}
+```
 
-**Mock Clarification:**
-- Question: "What type of diabetes?"
-- Options: Type 1, Type 2, Gestational, Unknown
+### `GET /api/notes`
 
----
+Response:
 
-## Frontend Behavior
+```json
+[
+  {
+    "note_id": "n1234abcd",
+    "content": "Clinical note text",
+    "preview": "Clinical note text",
+    "uploaded_at": "2026-03-26T12:00:00+00:00",
+    "status": "processing"
+  }
+]
+```
 
-### On Upload Success
-- Extracts `noteId` from response
-- Navigates to `/note/{noteId}`
-- Begins polling status
+## Frontend configuration
 
-### On Processing Complete
-- Calls `getResult()` endpoint
-- Displays all codes with confidence scores
-- Shows reasoning and audit trail
+Use [`frontend/.env.example`](/d:/ET_FULL/frontend/.env.example) as the template.
 
-### On Error
-- Displays error message to user
-- Stops polling
-- Offers retry option
+Supported variables:
 
-### On Clarification
-- Shows dialog with question and options
-- Disables polling temporarily
-- Sends answer to backend
-- Resumes polling after confirmation
+- `VITE_API_BASE_URL=http://localhost:8000`
+- `VITE_USE_MOCK=false`
 
----
+If `VITE_API_BASE_URL` is empty, the frontend uses relative `/api/...` routes and the Vite dev proxy handles local development.
 
-## Common Pitfalls
+## Local development
 
-### ❌ Wrong Response Format
-- Codes must be arrays, not objects
-- Confidence must be 0-1, not 0-100
-- Status must be exact string match
+Backend:
 
-### ❌ Missing CORS Headers
-- Frontend can't access backend if CORS not enabled
+```powershell
+$env:PYTHONPATH='src'
+python -m uvicorn demo.api:app --reload --host 0.0.0.0 --port 8000
+```
 
-### ❌ Slow Processing
-- Frontend times out if processing takes > 5 minutes
-- Return appropriate status to prevent timeout
+Frontend:
 
-### ❌ No Error Handling
-- Backend returns HTML instead of JSON on error
-- Crashes frontend error handler
-
----
-
-## Deployment Checklist
-
-Before going to production:
-
-- [ ] Set `USE_MOCK = false`
-- [ ] Update API base URL
-- [ ] Enable CORS for production domain
-- [ ] Test all 5 endpoints
-- [ ] Verify error responses
-- [ ] Test polling with slow backend
-- [ ] Test clarification flow
-- [ ] Load test with multiple users
-- [ ] Monitor error logs
-- [ ] Set up CI/CD pipeline
-
----
-
-## Need Help?
-
-Check the Frontend Architecture section in README.md for more details on:
-- Component structure
-- Data flow
-- API layer design
-- Error handling
-
----
-
-Made with ❤️ for seamless backend integration
+```powershell
+npm --prefix frontend install
+npm --prefix frontend run dev
+```

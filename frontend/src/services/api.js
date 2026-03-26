@@ -1,4 +1,66 @@
-const USE_MOCK = false;
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/$/, '');
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const { hostname, port, protocol } = window.location;
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+  if (isLocalHost && port !== '8000') {
+    return `${protocol}//${hostname}:8000`;
+  }
+
+  return '';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
+
+async function requestJson(path, options, fallbackMessage) {
+  try {
+    const response = await fetch(apiUrl(path), options);
+    return await parseJsonResponse(response, fallbackMessage);
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TypeError') {
+      const target = apiUrl(path);
+      throw new Error(
+        `Unable to reach the backend at ${target}. Start the API server on http://localhost:8000 or set VITE_API_BASE_URL.`
+      );
+    }
+
+    throw error;
+  }
+}
+
+async function parseJsonResponse(response, fallbackMessage) {
+  let payload = null;
+
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof payload?.detail === 'string'
+        ? payload.detail
+        : payload?.message || fallbackMessage;
+    throw new Error(detail);
+  }
+
+  return payload;
+}
 
 const processingBlueprint = [
   {
@@ -504,54 +566,51 @@ function normalizeAnswers(answers) {
 }
 
 async function realUploadNotes(notes) {
-  const response = await fetch('/api/notes/upload', {
+  return requestJson(
+    '/api/notes/upload',
+    {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notes }),
-  });
-  return response.json();
+    },
+    'Unable to upload note'
+  );
 }
 
 async function realStartProcessing(noteId) {
-  const response = await fetch('/api/processing/start', {
+  return requestJson(
+    '/api/processing/start',
+    {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ note_id: noteId }),
-  });
-  return response.json();
+    },
+    'Unable to start processing'
+  );
 }
 
 async function realGetStatus(noteId) {
-  const response = await fetch(`/api/processing/status/${noteId}`);
-  if (!response.ok) {
-    throw new Error('Note not found');
-  }
-  return response.json();
+  return requestJson(`/api/processing/status/${noteId}`, undefined, 'Note not found');
 }
 
 async function realGetResult(noteId) {
-  const response = await fetch(`/api/results/${noteId}`);
-  if (!response.ok) {
-    throw new Error('Result not found');
-  }
-  return response.json();
+  return requestJson(`/api/results/${noteId}`, undefined, 'Result not found');
 }
 
 async function realSendClarification(noteId, answers) {
-  const response = await fetch('/api/clarification', {
+  return requestJson(
+    '/api/clarification',
+    {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ note_id: noteId, answers }),
-  });
-  return response.json();
+    },
+    'Unable to submit clarification'
+  );
 }
 
 async function realGetAllNotes() {
-  const response = await fetch('/api/notes');
-  if (!response.ok) {
-    return [];
-  }
-  return response.json();
+  return requestJson('/api/notes', undefined, 'Unable to load notes');
 }
 
 function delay(ms) {

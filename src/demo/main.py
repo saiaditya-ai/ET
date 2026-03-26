@@ -4,14 +4,18 @@ import warnings
 
 from datetime import datetime
 
-from demo.crew import MedicalCrew
-
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pysbd")
 
 # This main file is intended to be a way for you to run your
 # crew locally, so refrain from adding unnecessary logic into this file.
 # Replace with inputs you want to test with, it will automatically
 # interpolate any tasks and agents information
+
+def _get_medical_crew():
+    from demo.crew import MedicalCrew
+
+    return MedicalCrew
+
 
 def run():
     """
@@ -27,7 +31,7 @@ def run():
             'current_year': str(datetime.now().year)
         }
         try:
-            MedicalCrew().crew().kickoff(inputs=inputs)
+            _get_medical_crew()().crew().kickoff(inputs=inputs)
         except Exception as e:
             raise Exception(f"An error occurred while running the crew: {e}")
     else:
@@ -46,7 +50,11 @@ def train():
         'current_year': str(datetime.now().year)
     }
     try:
-        MedicalCrew().crew().train(n_iterations=int(sys.argv[1]), filename=sys.argv[2], inputs=inputs)
+        _get_medical_crew()().crew().train(
+            n_iterations=int(sys.argv[1]),
+            filename=sys.argv[2],
+            inputs=inputs,
+        )
 
     except Exception as e:
         raise Exception(f"An error occurred while training the crew: {e}")
@@ -56,7 +64,7 @@ def replay():
     Replay the crew execution from a specific task.
     """
     try:
-        MedicalCrew().crew().replay(task_id=sys.argv[1])
+        _get_medical_crew()().crew().replay(task_id=sys.argv[1])
 
     except Exception as e:
         raise Exception(f"An error occurred while replaying the crew: {e}")
@@ -71,7 +79,11 @@ def test():
     }
 
     try:
-        MedicalCrew().crew().test(n_iterations=int(sys.argv[1]), eval_llm=sys.argv[2], inputs=inputs)
+        _get_medical_crew()().crew().test(
+            n_iterations=int(sys.argv[1]),
+            eval_llm=sys.argv[2],
+            inputs=inputs,
+        )
 
     except Exception as e:
         raise Exception(f"An error occurred while testing the crew: {e}")
@@ -97,7 +109,7 @@ def run_with_trigger():
     }
 
     try:
-        result = MedicalCrew().crew().kickoff(inputs=inputs)
+        result = _get_medical_crew()().crew().kickoff(inputs=inputs)
         return result
     except Exception as e:
         raise Exception(f"An error occurred while running the crew with trigger: {e}")

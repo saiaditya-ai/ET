@@ -1,24 +1,20 @@
-from demo.crew import MedicalCrew
+from __future__ import annotations
+
+from demo.services.workflow_service import WorkflowService
+
 
 def run_pipeline(note: str):
-    crew = MedicalCrew().crew()
+    service = WorkflowService()
+    upload_response = service.upload_notes([note])
+    note_id = upload_response["note_ids"][0]
+    service.start_processing(note_id)
 
-    result = crew.kickoff(inputs={"note": note})
-
-    output = str(result)
-
-    # SIMPLE PARSING LOGIC
-    if "question" in output.lower():
-        return {
-            "status": "needs_clarification",
-            "questions": [output]
-        }
-
-    return {
-        "status": "completed",
-        "icd10_codes": ["E11.9"],
-        "cpt_codes": ["82947"],
-        "confidence": 0.9,
-        "reasoning": [output],
-        "audit_trail": ["CrewAI execution"]
-    }
+    while True:
+        status = service.get_status(note_id)
+        if status["status"] == "needs_clarification":
+            return {
+                "status": "needs_clarification",
+                "questions": status.get("questions", []),
+            }
+        if status["status"] == "completed":
+            return service.get_result(note_id)
