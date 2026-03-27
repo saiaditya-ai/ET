@@ -6,6 +6,17 @@ This repository contains:
 - a React + Vite frontend in [`frontend`](/d:/ET_FULL/frontend)
 - an optional CrewAI-powered processing path when CrewAI and model keys are available
 
+## Tools & APIs Used
+
+**Frontend Desktop/Web:**
+- React 18, Vite, Tailwind CSS, Lucide React (Icons)
+
+**Backend / AI Orchestration:**
+- Python 3.10+, FastAPI, Uvicorn, CrewAI (AI Agent framework)
+
+**External APIs / Models:**
+- Groq API (`llama-3.3-70b-versatile`)
+
 ## Features
 
 The app currently supports:
