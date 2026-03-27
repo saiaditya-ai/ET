@@ -16,6 +16,7 @@ This repository contains:
 
 **External APIs / Models:**
 - Groq API (`llama-3.3-70b-versatile`)
+- API for ICD-10-CM(`API Base URL: https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search (+ query string parameters)`)
 
 ## Features
 
