@@ -1,4 +1,4 @@
-# Medical Coding Demo
+# MediCode Demo
 
 This repository contains:
 
